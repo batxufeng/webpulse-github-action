@@ -1,0 +1,143 @@
+name: 'WebPulse Website Health Check'
+author: 'Auto Company'
+description: 'Analyze website performance, SEO, security, and accessibility in your GitHub workflows'
+branding:
+  icon: 'activity'
+  color: 'purple'
+
+inputs:
+  url:
+    description: 'URL to analyze'
+    required: true
+  api-key:
+    description: 'WebPulse API key (optional, for authenticated requests)'
+    required: false
+  fail-on-score:
+    description: 'Fail the workflow if overall score is below this value (0-100)'
+    required: false
+    default: '0'
+  comment-pr:
+    description: 'Comment on PR with results (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  overall-score:
+    description: 'Overall health score (0-100)'
+    value: ${{ steps.webpulse.outputs.overall-score }}
+  performance-score:
+    description: 'Performance score'
+    value: ${{ steps.webpulse.outputs.performance-score }}
+  seo-score:
+    description: 'SEO score'
+    value: ${{ steps.webpulse.outputs.seo-score }}
+  security-score:
+    description: 'Security score'
+    value: ${{ steps.webpulse.outputs.security-score }}
+  accessibility-score:
+    description: 'Accessibility score'
+    value: ${{ steps.webpulse.outputs.accessibility-score }}
+  result-json:
+    description: 'Full scan result as JSON'
+    value: ${{ steps.webpulse.outputs.result-json }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run WebPulse Scan
+      id: webpulse
+      shell: bash
+      env:
+        WEBPULSE_URL: ${{ inputs.url }}
+        WEBPULSE_API_KEY: ${{ inputs.api-key }}
+        WEBPULSE_FAIL_ON_SCORE: ${{ inputs.fail-on-score }}
+        WEBPULSE_COMMENT_PR: ${{ inputs.comment-pr }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        echo "🔍 WebPulse - Website Health Check"
+        echo "=================================="
+        echo ""
+
+        # API endpoint
+        API_URL="https://webpulse-api.linkpeek.workers.dev/api/scan"
+
+        # Build request body
+        BODY="{\"url\": \"$WEBPULSE_URL\""
+        if [ -n "$WEBPULSE_API_KEY" ]; then
+          BODY="$BODY, \"api_key\": \"$WEBPULSE_API_KEY\""
+        fi
+        BODY="$BODY}"
+
+        echo "📊 Analyzing: $WEBPULSE_URL"
+        echo ""
+
+        # Make API request
+        RESPONSE=$(curl -s -X POST "$API_URL" \
+          -H "Content-Type: application/json" \
+          -d "$BODY")
+
+        echo "Raw Response: $RESPONSE"
+        echo ""
+
+        # Parse scores (using grep and sed for portability)
+        # Extract overall score
+        OVERALL_SCORE=$(echo "$RESPONSE" | grep -o '"overall":[0-9.]*' | head -1 | cut -d':' -f2)
+        PERF_SCORE=$(echo "$RESPONSE" | grep -o '"performance":[0-9.]*' | head -1 | cut -d':' -f2)
+        SEO_SCORE=$(echo "$RESPONSE" | grep -o '"seo":[0-9.]*' | head -1 | cut -d':' -f2)
+        SECURITY_SCORE=$(echo "$RESPONSE" | grep -o '"security":[0-9.]*' | head -1 | cut -d':' -f2)
+        A11Y_SCORE=$(echo "$RESPONSE" | grep -o '"accessibility":[0-9.]*' | head -1 | cut -d':' -f2)
+
+        # Round scores
+        OVERALL_SCORE_ROUNDED=$(printf "%.0f" "$OVERALL_SCORE")
+        PERF_SCORE_ROUNDED=$(printf "%.0f" "$PERF_SCORE")
+        SEO_SCORE_ROUNDED=$(printf "%.0f" "$SEO_SCORE")
+        SECURITY_SCORE_ROUNDED=$(printf "%.0f" "$SECURITY_SCORE")
+        A11Y_SCORE_ROUNDED=$(printf "%.0f" "$A11Y_SCORE")
+
+        # Display results
+        echo "╔════════════════════════════════════╗"
+        echo "║       WebPulse Health Report       ║"
+        echo "╠════════════════════════════════════╣"
+        printf "║  Overall Score:     %-10s  ║\n" "$OVERALL_SCORE_ROUNDED"
+        printf "║  Performance:       %-10s  ║\n" "$PERF_SCORE_ROUNDED"
+        printf "║  SEO:               %-10s  ║\n" "$SEO_SCORE_ROUNDED"
+        printf "║  Security:          %-10s  ║\n" "$SECURITY_SCORE_ROUNDED"
+        printf "║  Accessibility:     %-10s  ║\n" "$A11Y_SCORE_ROUNDED"
+        echo "╚════════════════════════════════════╝"
+        echo ""
+
+        # Set outputs
+        echo "overall-score=$OVERALL_SCORE_ROUNDED" >> $GITHUB_OUTPUT
+        echo "performance-score=$PERF_SCORE_ROUNDED" >> $GITHUB_OUTPUT
+        echo "seo-score=$SEO_SCORE_ROUNDED" >> $GITHUB_OUTPUT
+        echo "security-score=$SECURITY_SCORE_ROUNDED" >> $GITHUB_OUTPUT
+        echo "accessibility-score=$A11Y_SCORE_ROUNDED" >> $GITHUB_OUTPUT
+
+        # Escape JSON for output
+        ESCAPED_JSON=$(echo "$RESPONSE" | sed 's/%/%25/g' | sed 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+        echo "result-json=$ESCAPED_JSON" >> $GITHUB_OUTPUT
+
+        # Fail if score below threshold
+        if [ "$WEBPULSE_FAIL_ON_SCORE" -gt 0 ] && [ "$OVERALL_SCORE_ROUNDED" -lt "$WEBPULSE_FAIL_ON_SCORE" ]; then
+          echo "❌ Failed: Score $OVERALL_SCORE_ROUNDED < threshold $WEBPULSE_FAIL_ON_SCORE"
+          exit 1
+        fi
+
+        # Comment on PR if enabled
+        if [ "$WEBPULSE_COMMENT_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
+          COMMENT=$(cat << EOF
+          ## 🔍 WebPulse Health Check Results
+
+          | Metric | Score |
+          |--------|-------|
+          | **Overall** | $OVERALL_SCORE_ROUNDED |
+          | Performance | $PERF_SCORE_ROUNDED |
+          | SEO | $SEO_SCORE_ROUNDED |
+          | Security | $SECURITY_SCORE_ROUNDED |
+          | Accessibility | $A11Y_SCORE_ROUNDED |
+
+          _Powered by [WebPulse](https://winwebpulse.com)_
+          EOF
+          )
+          echo "$COMMENT" > /tmp/webpulse-comment.md
+        fi

@@ -1,0 +1,12 @@
+{
+  "name": "webpulse-github-action",
+  "version": "1.0.0",
+  "description": "GitHub Action for WebPulse website health analysis",
+  "main": "action.yml",
+  "scripts": {
+    "test": "echo 'No tests yet'"
+  },
+  "keywords": ["github-action", "website", "performance", "seo", "accessibility"],
+  "author": "Auto Company",
+  "license": "MIT"
+}

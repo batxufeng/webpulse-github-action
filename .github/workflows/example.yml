@@ -1,0 +1,17 @@
+# Example workflow: Basic website health check
+name: Website Health Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check website health
+        uses: ./  # Use local action for testing
+        with:
+          url: 'https://example.com'

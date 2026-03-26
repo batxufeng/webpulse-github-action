@@ -1,0 +1,16 @@
+# Example workflow: Scheduled monitoring
+name: Production Health Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production health
+        uses: ./  # Use local action for testing
+        with:
+          url: 'https://winwebpulse.com'
+          fail-on-score: 70
