@@ -3,7 +3,7 @@ name: Production Health Monitor
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '0 0 * * *'  # Daily at midnight
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
@@ -17,4 +17,5 @@ jobs:
         uses: ./  # Use local action for testing
         with:
           url: 'https://winwebpulse.com'
+          api-key: ${{ secrets.WEBPULSE_API_KEY }}
           fail-on-score: 70
