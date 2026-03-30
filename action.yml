@@ -46,7 +46,7 @@ runs:
   steps:
     - name: Run WebPulse Scan
       id: webpulse
-      shell: bash
+      shell: bash --noprofile --norc {0}
       env:
         WEBPULSE_URL: ${{ inputs.url }}
         WEBPULSE_API_KEY: ${{ inputs.api-key }}
