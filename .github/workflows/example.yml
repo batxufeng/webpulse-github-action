@@ -11,6 +11,9 @@ jobs:
   health-check:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check website health
         uses: ./  # Use local action for testing
         with:
