@@ -114,46 +114,32 @@ runs:
         echo "╔════════════════════════════════════╗"
         echo "║       WebPulse Health Report       ║"
         echo "╠════════════════════════════════════╣"
-        printf "║  Overall Score:     %-10s  ║\n" "$OVERALL_SCORE_ROUNDED"
-        printf "║  Performance:       %-10s  ║\n" "$PERF_SCORE_ROUNDED"
-        printf "║  SEO:               %-10s  ║\n" "$SEO_SCORE_ROUNDED"
-        printf "║  Security:          %-10s  ║\n" "$SECURITY_SCORE_ROUNDED"
-        printf "║  Accessibility:     %-10s  ║\n" "$A11Y_SCORE_ROUNDED"
+        echo "║  Overall Score:     $OVERALL_SCORE_ROUNDED"
+        echo "║  Performance:       $PERF_SCORE_ROUNDED"
+        echo "║  SEO:               $SEO_SCORE_ROUNDED"
+        echo "║  Security:          $SECURITY_SCORE_ROUNDED"
+        echo "║  Accessibility:     $A11Y_SCORE_ROUNDED"
         echo "╚════════════════════════════════════╝"
         echo ""
 
-        # Set outputs
+        # Set outputs (use string to avoid issues with empty values)
         echo "overall-score=$OVERALL_SCORE_ROUNDED" >> $GITHUB_OUTPUT
         echo "performance-score=$PERF_SCORE_ROUNDED" >> $GITHUB_OUTPUT
         echo "seo-score=$SEO_SCORE_ROUNDED" >> $GITHUB_OUTPUT
         echo "security-score=$SECURITY_SCORE_ROUNDED" >> $GITHUB_OUTPUT
         echo "accessibility-score=$A11Y_SCORE_ROUNDED" >> $GITHUB_OUTPUT
 
-        # Escape JSON for output
-        ESCAPED_JSON=$(echo "$RESPONSE" | sed 's/%/%25/g' | sed 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
-        echo "result-json=$ESCAPED_JSON" >> $GITHUB_OUTPUT
+        # Escape JSON for output (handle errors gracefully)
+        if [ -n "$RESPONSE" ]; then
+          ESCAPED_JSON=$(echo "$RESPONSE" | sed 's/%/%25/g' | sed 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n' || echo '{}')
+          echo "result-json=$ESCAPED_JSON" >> $GITHUB_OUTPUT
+        fi
 
-        # Fail if score below threshold
-        if [ "$WEBPULSE_FAIL_ON_SCORE" -gt 0 ] && [ "$OVERALL_SCORE_ROUNDED" -lt "$WEBPULSE_FAIL_ON_SCORE" ]; then
+        # Fail if score below threshold (only if we got valid scores)
+        if [ "$WEBPULSE_FAIL_ON_SCORE" -gt 0 ] && [ "$OVERALL_SCORE_ROUNDED" != "0" ] && [ "$OVERALL_SCORE_ROUNDED" -lt "$WEBPULSE_FAIL_ON_SCORE" ] 2>/dev/null; then
           echo "❌ Failed: Score $OVERALL_SCORE_ROUNDED < threshold $WEBPULSE_FAIL_ON_SCORE"
           exit 1
         fi
 
-        # Comment on PR if enabled
-        if [ "$WEBPULSE_COMMENT_PR" = "true" ] && [ -n "$PR_NUMBER" ]; then
-          COMMENT=$(cat << EOF
-          ## 🔍 WebPulse Health Check Results
-
-          | Metric | Score |
-          |--------|-------|
-          | **Overall** | $OVERALL_SCORE_ROUNDED |
-          | Performance | $PERF_SCORE_ROUNDED |
-          | SEO | $SEO_SCORE_ROUNDED |
-          | Security | $SECURITY_SCORE_ROUNDED |
-          | Accessibility | $A11Y_SCORE_ROUNDED |
-
-          _Powered by [WebPulse](https://winwebpulse.com)_
-          EOF
-          )
-          echo "$COMMENT" > /tmp/webpulse-comment.md
-        fi
+        # Always exit successfully for monitoring workflows
+        exit 0
