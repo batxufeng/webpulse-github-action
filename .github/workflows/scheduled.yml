@@ -18,4 +18,4 @@ jobs:
         with:
           url: 'https://winwebpulse.com'
           api-key: ${{ secrets.WEBPULSE_API_KEY }}
-          fail-on-score: 70
+          fail-on-score: 0  # Don't fail workflow (for monitoring only)
